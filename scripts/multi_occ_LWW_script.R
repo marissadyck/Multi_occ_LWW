@@ -1,4 +1,4 @@
-# R code for multispecies occupancy analysis of lynx, wildcat, and wolf published in Dyck ey al., 2022
+# R code for multispecies occupancy analysis of lynx, wildcat, and wolf published in Dyck et al., 2022
 # Citation: Dyck, M. A., Iosif, R., Promberger–Fürpass, B., & Popescu, V. D. (2022). Dracula’s ménagerie: A multispecies occupancy analysis of lynx, wildcat, and wolf in the Romanian Carpathians. *Ecology and evolution*, 12(5), e8921.
 
 
@@ -103,12 +103,12 @@ obs_covs_winter <-
 # combining impact at site for detection covariate and calling it 'some'. Not enough samples per each category to keep them separate, combining also simplifies variable reducing potential bias given that some rangers may report "low" while others more specifically report "logging" etc.
 some <- c("Isolated buildings", "Logging", "Village", "Low")
 
-# Combine specific CORINE Land Cover types into broader categories (CLC_ag, CLC_open, CLC_CLC)
+# Combine specific CORINE Land Cover types into broader categories (CLC_ag, CLC_open, CLC_forest)
 winter_sites <-
   winter_sites %>% 
   mutate(CLC_ag = (CLC211 + CLC222 + CLC242 + CLC243),# proportion agriculture
          CLC_open = (CLC231 + CLC321 + CLC322 + CLC324), # proportion open habitat
-         CLC_CLC = (CLC311 + CLC312 + CLC313),# proportion CLC
+         CLC_forest = (CLC311 + CLC312 + CLC313),# proportion CLC
          Impact.2 = case_when(Impact == "None" ~ 0,
                               Impact %in% some ~ 1))
 
@@ -131,7 +131,7 @@ winter_sites.scaled$Z <- scale(winter_sites.scaled$Z)
 winter_sites.scaled$CLC311 <- scale(winter_sites.scaled$CLC311)
 winter_sites.scaled$CLC312 <- scale(winter_sites.scaled$CLC312)
 winter_sites.scaled$CLC313 <- scale(winter_sites.scaled$CLC313)
-winter_sites.scaled$CLC_CLC <- scale(winter_sites.scaled$CLC_CLC)
+winter_sites.scaled$CLC_forest <- scale(winter_sites.scaled$CLC_forest)
 winter_sites.scaled$CLC_ag <- scale(winter_sites.scaled$CLC_ag)
 winter_sites.scaled$CLC_open <- scale(winter_sites.scaled$CLC_open)
 
@@ -183,7 +183,7 @@ winter_occ_data@fDesign
 winter_sites.corr <- 
   winter_sites.scaled %>%
   select(
-    denslocalr, distlocalr, distnatlro, distsettle, diststream, TRI5, CLC_ag, CLC_open, CLC_CLC, CLC311, CLC312, CLC313, Z)
+    denslocalr, distlocalr, distnatlro, distsettle, diststream, TRI5, CLC_ag, CLC_open, CLC_forest, CLC311, CLC312, CLC313, Z)
 
 plot(winter_sites.corr)
 panel.hist <- function(x, ...)
@@ -209,7 +209,7 @@ pairs(winter_sites.corr,upper.panel=panel.cor,diag.panel = panel.hist, cex = 1.2
 
 # use function cor.test() to get Pearson's correlation for highly correlated variables >= 0.70
 cor.test(winter_sites.scaled$distnatlro, winter_sites.scaled$distsettle) # 0.8242827 
-cor.test(winter_sites.scaled$CLC_ag, winter_sites.scaled$CLC_CLC) # -0.7000685 
+cor.test(winter_sites.scaled$CLC_ag, winter_sites.scaled$CLC_forest) # -0.7000685 
 cor.test(winter_sites.scaled$distsettle, winter_sites.scaled$CLC312) #0.7533168 
 
 
@@ -241,7 +241,7 @@ winter_L_z <- occuMulti(winter_LWW_det, winter_L_OF_z, winter_occ_data)
 summary(winter_L_z)
 
 # lynx CLC
-winter_L_OF_CLC <- c('~CLC_CLC', '~1', '~1',
+winter_L_OF_CLC <- c('~CLC_forest', '~1', '~1',
                         '~1', '~1', '~1', 
                         '~0')
 winter_L_CLC <- occuMulti(winter_LWW_det, winter_L_OF_CLC, winter_occ_data)
@@ -285,7 +285,7 @@ winter_Wc_rd <- occuMulti(winter_LWW_det, winter_Wc_OF_rd, winter_occ_data)
 summary(winter_Wc_rd)
 
 # wildcat CLC
-winter_Wc_OF_CLC <- c('~1', '~CLC_CLC', '~1',
+winter_Wc_OF_CLC <- c('~1', '~CLC_forest', '~1',
                          '~1', '~1', '~1', 
                          '~0')
 winter_Wc_CLC <- occuMulti(winter_LWW_det, winter_Wc_OF_CLC, winter_occ_data)
@@ -308,7 +308,7 @@ winter_W_rd <- occuMulti(winter_LWW_det, winter_W_OF_rd, winter_occ_data)
 summary(winter_W_rd)
 
 # wolf CLC
-winter_W_OF_CLC <- c('~1', '~1', '~CLC_CLC',
+winter_W_OF_CLC <- c('~1', '~1', '~CLC_forest',
                         '~1', '~1', '~1', 
                         '~0')
 winter_W_CLC <- occuMulti(winter_LWW_det, winter_W_OF_rd, winter_occ_data)
@@ -344,19 +344,19 @@ winter_OF_1 <- c('~denslocalr', '~Z', '~denslocalr',
 winter_LWW_1 <- occuMulti(winter_LWW_det, winter_OF_1, winter_occ_data)
 summary(winter_LWW_1)
 
-winter_OF_2 <- c('~denslocalr', '~Z', '~CLC_CLC',
+winter_OF_2 <- c('~denslocalr', '~Z', '~CLC_forest',
                  '~1', '~1', '~1',
                  '~0')
 winter_LWW_2 <- occuMulti(winter_LWW_det, winter_OF_2, winter_occ_data)
 summary(winter_LWW_2)
 
-winter_OF_3 <- c('~CLC_CLC', '~Z', '~denslocalr',
+winter_OF_3 <- c('~CLC_forest', '~Z', '~denslocalr',
                 '~1', '~1', '~1', 
                 '~0')
 winter_LWW_3 <- occuMulti(winter_LWW_det, winter_OF_3, winter_occ_data)
 summary(winter_LWW_3)
 
-winter_OF_4 <- c('~CLC_CLC', '~Z', '~CLC_CLC',
+winter_OF_4 <- c('~CLC_forest', '~Z', '~CLC_forest',
                  '~1', '~1', '~1',
                  '~0')
 winter_LWW_4 <- occuMulti(winter_LWW_det, winter_OF_4, winter_occ_data)
@@ -374,49 +374,49 @@ modSel(winter_occ_mods)
 
 # felid elevation + habitat
 winter_LWW_OF_200 <- c('~denslocalr', '~Z', '~denslocalr',
-                       '~Z', '~CLC_CLC', '~CLC_CLC', 
+                       '~Z', '~CLC_forest', '~CLC_forest', 
                        '~0')
 winter_LWW_200 <- occuMulti(winter_LWW_det, winter_LWW_OF_200, winter_occ_data)
 summary(winter_LWW_200) 
 
 # habitat
 winter_LWW_OF_201 <- c('~denslocalr', '~Z', '~denslocalr',
-                       '~CLC_CLC', '~CLC_CLC', '~CLC_CLC', 
+                       '~CLC_forest', '~CLC_forest', '~CLC_forest', 
                        '~0')
 winter_LWW_201 <- occuMulti(winter_LWW_det, winter_LWW_OF_201, winter_occ_data)
 summary(winter_LWW_201) 
 
 # wildcat habitat, lynx:wolf movement
 winter_LWW_OF_202 <- c('~denslocalr', '~Z', '~denslocalr',
-                       '~CLC_CLC', '~TRI5', '~CLC_CLC', 
+                       '~CLC_forest', '~TRI5', '~CLC_forest', 
                        '~0')
 winter_LWW_202 <- occuMulti(winter_LWW_det, winter_LWW_OF_202, winter_occ_data)
 summary(winter_LWW_202) 
 
 # habitat wildct:wolf roads
 winter_LWW_OF_203<- c('~denslocalr', '~Z', '~denslocalr',
-                      '~CLC_CLC', '~CLC_CLC', '~denslocalr', 
+                      '~CLC_forest', '~CLC_forest', '~denslocalr', 
                       '~0')
 winter_LWW_203 <- occuMulti(winter_LWW_det, winter_LWW_OF_203, winter_occ_data)
 summary(winter_LWW_203)
 
 #lynx:wildcat roads + habitat
 winter_LWW_OF_204 <- c('~denslocalr', '~Z', '~denslocalr',
-                       '~denslocalr', '~CLC_CLC', '~CLC_CLC', 
+                       '~denslocalr', '~CLC_forest', '~CLC_forest', 
                        '~0')
 winter_LWW_204 <- occuMulti(winter_LWW_det, winter_LWW_OF_204, winter_occ_data)
 summary(winter_LWW_204)
 
 #lynx:wildcat movement, wolf habitat
 winter_LWW_OF_205 <-  c('~denslocalr', '~Z', '~denslocalr',
-                        '~TRI5', '~CLC_CLC', '~CLC_CLC', 
+                        '~TRI5', '~CLC_forest', '~CLC_forest', 
                         '~0')
 winter_LWW_205 <- occuMulti(winter_LWW_det, winter_LWW_OF_205, winter_occ_data)
 summary(winter_LWW_205)
 
 #lynx:wildcat movement, wolf:lynx ~ CLC, wildcat:wolf ~elevation
 winter_LWW_OF_206 <-  c('~denslocalr', '~Z', '~denslocalr',
-                        '~TRI5', '~CLC_CLC', '~Z', 
+                        '~TRI5', '~CLC_forest', '~Z', 
                         '~0')
 winter_LWW_206 <- occuMulti(winter_LWW_det, winter_LWW_OF_206, winter_occ_data)
 summary(winter_LWW_206)
@@ -440,7 +440,7 @@ modSel(winter_co.occ_mods)
 
 #lynx:wildcat movement, wolf habitat
 winter_LWW_OF_205 <-  c('~denslocalr', '~Z', '~denslocalr',
-                        '~TRI5', '~CLC_CLC', '~CLC_CLC', 
+                        '~TRI5', '~CLC_forest', '~CLC_forest', 
                         '~0')
 winter_LWW_205 <- occuMulti(winter_LWW_det, winter_LWW_OF_205, winter_occ_data)
 summary(winter_LWW_205)
@@ -723,7 +723,7 @@ winter_205_Z.df <-
         min(winter_sites.scaled$Z), 
         max(winter_sites.scaled$Z), 
         0.01),
-      CLC_CLC = mean(winter_sites.scaled$CLC_CLC),
+      CLC_forest = mean(winter_sites.scaled$CLC_forest),
       denslocalr = mean(winter_sites.scaled$denslocalr),
       TRI5 = mean(winter_sites.scaled$TRI5),
       diststream = mean(winter_sites.scaled$diststream)))
@@ -740,7 +740,7 @@ winter_Epsi_205_Wc <-
   data.frame(winter_Epsi_205_Wc, 
              denslocalr = winter_205_Z.df$denslocalr,
              Z = winter_205_Z.df$Z,
-             CLC_CLC = winter_205_Z.df$CLC_CLC,
+             CLC_forest = winter_205_Z.df$CLC_forest,
              TRI5 = winter_205_Z.df$TRI5,
              diststream = winter_205_Z.df$diststream)
 
@@ -808,9 +808,9 @@ winter_Wc_Z.plot <-
 winter_205_CLC.df <- 
   data.frame(
     expand.grid(
-      CLC_CLC = seq(
-        min(winter_sites.scaled$CLC_CLC), 
-        max(winter_sites.scaled$CLC_CLC), 
+      CLC_forest = seq(
+        min(winter_sites.scaled$CLC_forest), 
+        max(winter_sites.scaled$CLC_forest), 
         0.01),
       Z = mean(winter_sites.scaled$Z),
       denslocalr = mean(winter_sites.scaled$denslocalr),
@@ -825,7 +825,7 @@ CLC <-
       length.out = 509),
   ncol = 1)
 
-# get predicted values for co-occurrence of lynx and wolf with new data frame only varying values for CLC_CLC
+# get predicted values for co-occurrence of lynx and wolf with new data frame only varying values for CLC_forest
 winter_Epsi_coOcc_LW<- 
   predict(winter_LWW_205, 
           type = "state", 
@@ -837,10 +837,10 @@ winter_Epsi_coOcc_LW <-
   data.frame(winter_Epsi_coOcc_LW,
              denslocalr = winter_205_CLC.df$denslocalr,
              Z = winter_205_CLC.df$Z,
-             CLC_CLC = winter_205_CLC.df$CLC_CLC,
+             CLC_forest = winter_205_CLC.df$CLC_forest,
              TRI5 = winter_205_CLC.df$TRI5)
 
-# combine raw CLC_CLC values with predicted values for lynx and wolf in new data frame
+# combine raw CLC_forest values with predicted values for lynx and wolf in new data frame
 winter_Epsi_coOcc_LW <- 
   cbind(winter_Epsi_coOcc_LW, CLC)
 
@@ -882,7 +882,7 @@ winter_L_W_coOcc.plot <-
 
 # data
 
-# can use the new data frame created earlier for CLC_CLC
+# can use the new data frame created earlier for CLC_forest
 head(winter_205_CLC.df)
 
 CLC_forest <-
@@ -989,7 +989,7 @@ winter_Epsi_W_noWc <-
           newdata= winter_205_CLC.df)
 
 
-# add conditional column for each of the conditional occupancy data frames that specifies present/absent and another for species, as well as column for 1 SE, and column for the unscaled variable CLC_CLC
+# add conditional column for each of the conditional occupancy data frames that specifies present/absent and another for species, as well as column for 1 SE, and column for the unscaled variable CLC_forest
 
 # lynx | wolf
 winter_Epsi_L_W <- 
