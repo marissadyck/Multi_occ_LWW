@@ -14,6 +14,7 @@ library(rphylopic)
 library(unmarked)
 library(dplyr)
 library(ggplot2)
+library(PerformanceAnalytics)
 
 
 # Source ------------------------------------------------------------------
@@ -29,9 +30,9 @@ source('scripts/om_predict_fix.R')
 # this section uses the package 'rphylopic' 
 
 # assign names to phylopic images for graphs
-lynx_phylo <- image_data("0957f561-d68e-499b-b1ad-20f444064033", size = 256)[[1]]
-wolf_phylo <- image_data("8cad2b22-30d3-4cbd-86a3-a6d2d004b201", size = 256)[[1]]
-wc_phylo <- image_data("1edbe9ff-c453-47f3-9174-2e1f9c5983de", size = 256)[[1]]
+lynx_phylo <- get_phylopic("0957f561-d68e-499b-b1ad-20f444064033")
+wolf_phylo <- get_phylopic("8cad2b22-30d3-4cbd-86a3-a6d2d004b201")
+wc_phylo <- get_phylopic("1edbe9ff-c453-47f3-9174-2e1f9c5983de")
 
 
 # Data (winter) -------------------------------------------------------------
@@ -40,38 +41,29 @@ wc_phylo <- image_data("1edbe9ff-c453-47f3-9174-2e1f9c5983de", size = 256)[[1]]
 
 # detection history
 winter_spp <- 
-  read.csv('data/species_matrix_winter.csv')
-
-# set Trapcode as factor
-winter_spp$TrapCode <- 
-  as.factor(winter_spp$TrapCode)
+  read.csv('data/species_matrix_winter.csv') %>% 
+  
+  # set Trapcode as factor
+  mutate(TrapCode = as.factor(TrapCode))
 
 
 # trap effort/observation covaraites
 winter_traps <- 
-  read.csv('data/trap_effort_winter.csv')
-
-# set Trapcode as factor
-winter_traps$TrapCode <-
-  as.factor(winter_traps$TrapCode)
+  read.csv('data/trap_effort_winter.csv') %>% 
+  
+  # set Trapcode as factor
+  mutate(TrapCode = as.factor(TrapCode))
 
 
 # site covariates
 winter_sites <- 
-  read.csv('data/cams_data_winter.csv')
+  read.csv('data/cams_data_winter.csv') %>% 
   
 # alter variable structure
-winter_sites$TrapCode <- 
-  as.factor(winter_sites$TrapCode)
-
-winter_sites$Z <- 
-  as.numeric(winter_sites$Z)
-
-winter_sites$Impact <- 
-  as.factor(winter_sites$Impact)
-
-winter_sites$CLC2018 <- 
-  as.factor(winter_sites$CLC2018)
+  mutate(TrapCode = as.factor(TrapCode),
+         Z = as.numeric(Z),
+         Impact = as.factor(Impact),
+         CLC2018 = as.factor(CLC2018))
 
 
 # Format data (winter) ----------------------------------------------------
@@ -110,32 +102,22 @@ winter_sites <-
          CLC_open = (CLC231 + CLC321 + CLC322 + CLC324), # proportion open habitat
          CLC_forest = (CLC311 + CLC312 + CLC313),# proportion CLC
          Impact.2 = case_when(Impact == "None" ~ 0,
-                              Impact %in% some ~ 1))
+                              Impact %in% some ~ 1),
+         
+         # change Impact.2 to factor
+         Impact.2 = as.factor(Impact.2))
 
-# change Impact.2 to factoor
-winter_sites$Impact.2 <- 
-  as.factor(winter_sites$Impact.2)
 
 # create new object winter_sites.scaled for scaled variables 
-winter_sites.scaled <- 
-  winter_sites
+winter_sites.scaled <- winter_sites %>% 
+  
+  # use mutate with across and where to scale all numeric varaibles
+  mutate(across(where(is.numeric), scale))
 
-# scale variables
-winter_sites.scaled$denslocalr <- scale(winter_sites.scaled$denslocalr)
-winter_sites.scaled$distlocalr <- scale(winter_sites.scaled$distlocalr)
-winter_sites.scaled$distnatlro <- scale(winter_sites.scaled$distnatlro)
-winter_sites.scaled$distsettle <- scale (winter_sites.scaled$distsettle)
-winter_sites.scaled$diststream <- scale(winter_sites.scaled$diststream)
-winter_sites.scaled$TRI5 <- scale(winter_sites.scaled$TRI5)
-winter_sites.scaled$Z <- scale(winter_sites.scaled$Z)
-winter_sites.scaled$CLC311 <- scale(winter_sites.scaled$CLC311)
-winter_sites.scaled$CLC312 <- scale(winter_sites.scaled$CLC312)
-winter_sites.scaled$CLC313 <- scale(winter_sites.scaled$CLC313)
-winter_sites.scaled$CLC_forest <- scale(winter_sites.scaled$CLC_forest)
-winter_sites.scaled$CLC_ag <- scale(winter_sites.scaled$CLC_ag)
-winter_sites.scaled$CLC_open <- scale(winter_sites.scaled$CLC_open)
+# check data
+head(winter_sites.scaled)
 
-# create site covarioates data for the unmarkedFrameOccuMulti 
+# create site covariates data for the unmarkedFrameOccuMulti 
 winter_site_covs <- 
   data.frame(winter_sites.scaled)
 
@@ -182,30 +164,25 @@ winter_occ_data@fDesign
 # create a subset of numeric covariates we are interested in using for analysis to test for correlations between variables
 winter_sites.corr <- 
   winter_sites.scaled %>%
-  select(
-    denslocalr, distlocalr, distnatlro, distsettle, diststream, TRI5, CLC_ag, CLC_open, CLC_forest, CLC311, CLC312, CLC313, Z)
+  select(denslocalr, 
+         distlocalr, 
+         distnatlro, 
+         distsettle, 
+         diststream, 
+         TRI5, 
+         CLC_ag, 
+         CLC_open, 
+         CLC_forest, 
+         CLC311, 
+         CLC312, 
+         CLC313, 
+         Z)
 
-plot(winter_sites.corr)
-panel.hist <- function(x, ...)
-{
-  usr <- par("usr"); on.exit(par(usr))
-  par(usr = c(usr[1:2], 0, 1.5) )
-  h <- hist(x, plot = FALSE)
-  breaks <- h$breaks; nB <- length(breaks)
-  y <- h$counts; y <- y/max(y)
-  rect(breaks[-nB], 0, breaks[-1], y, col = "cyan", ...)
-}  
-panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
-{
-  usr <- par("usr"); on.exit(par(usr))
-  par(usr = c(0, 1, 0, 1))
-  r <- abs(cor(x, y, use="pairwise.complete.obs"))
-  txt <- format(c(r, 0.123456789), digits = digits)[1]
-  txt <- paste0(prefix, txt)
-  if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
-  text(0.5, 0.5, txt, cex = cex.cor)
-}
-pairs(winter_sites.corr,upper.panel=panel.cor,diag.panel = panel.hist, cex = 1.2)
+# correlation matrix - Pearson
+chart.Correlation(winter_sites.corr, 
+                  histogram = TRUE, 
+                  method = "pearson")
+
 
 # use function cor.test() to get Pearson's correlation for highly correlated variables >= 0.70
 cor.test(winter_sites.scaled$distnatlro, winter_sites.scaled$distsettle) # 0.8242827 
@@ -765,30 +742,40 @@ winter_Epsi_205_Wc <-
 
 # graph
 
-winter_Wc_Z.plot <- 
-  ggplot(
-    data = winter_Epsi_205_Wc, 
-    aes(x = alt, 
-        y = Predicted))+
-  geom_line(size = 1, 
-            color = "black")+
-  geom_ribbon( 
-    aes(ymin = lwr, 
-        ymax = upr), 
-    alpha = 0.45, 
-    fill = "skyblue3")+
+winter_Wc_Z.plot <- ggplot(data = winter_Epsi_205_Wc, aes(x = alt, 
+                                                          y = Predicted)) +
+  
+  # add predicted line
+  geom_line(linewidth = 1, 
+            color = "black") +
+  
+  # add error ribbon around predicted line
+  geom_ribbon( aes(ymin = lwr, 
+                   ymax = upr), 
+               alpha = 0.45, 
+               fill = "skyblue3") +
+  
+  # alter axis labels
   xlab ("Altitude (meters)")+
-  ylab ("Occupancy Probability")+
+  ylab ("Occupancy Probability") +
+  
+  # standardize plot area and set breaks
   coord_cartesian(ylim = c(0,1),
                   xlim = c(706,1550)) +
-  scale_x_continuous(breaks = seq(700,1600, 200))+
+  scale_x_continuous(breaks = seq(700,1600, 200)) +
+  
+  # adjust theme elements for pub
   theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 18))+
+        axis.title = element_text(size = 18)) +
+  
+  # add panel label
   annotate("text", 
            x = 1570, 
            y = 1, 
            size = 7, 
-           label = "C")+
+           label = "C") +
+  
+  # add wildcat silhouette 
   add_phylopic(wc_phylo, 
                alpha = 1, 
                x = 1500, 
@@ -851,26 +838,36 @@ winter_Epsi_coOcc_LW <-
 
 
 # graph
-winter_L_W_coOcc.plot <- 
-  ggplot(
-    data = winter_Epsi_coOcc_LW, 
-    aes(x = CLC, 
-        y = Predicted))+
-  geom_line(size = 1)+
-  geom_ribbon( 
-    aes(ymin = lwr, 
-        ymax = upr), 
-    alpha = .45, 
-    fill = "skyblue3")+
+winter_L_W_coOcc.plot <- ggplot(data = winter_Epsi_coOcc_LW, aes(x = CLC, 
+                                                                 y = Predicted)) + 
+  
+  # add predicted line
+  geom_line(size = 1) +
+  
+  # add error ribbon
+  geom_ribbon(aes(ymin = lwr, 
+                  ymax = upr), 
+              alpha = .45, 
+              fill = "skyblue3") +
+  
+  # alter axis labels
   labs(x = expression ("Proportion CLC "~km^2),
-       y = "Predicted Co-occurrence")+
+       y = "Predicted Co-occurrence") +
+  
+  # standardize plot area
   coord_cartesian(ylim = c(0,0.955),
-                  xlim = c(0.12,1))+
-  ggtitle("Lynx & Wolf")+
+                  xlim = c(0.12,1)) +
+  
+  # title with species common names
+  ggtitle("Lynx & Wolf") +
+  
+  # adjust theme elements for pub
   theme(plot.title = element_text(hjust = 0.5, 
                                   size = 18),
         axis.text = element_text(size = 15),
-        axis.title = element_text(size = 18))+
+        axis.title = element_text(size = 18)) +
+  
+  # add panel label
   annotate("text", 
            x = 1, 
            y = 0.95, 
@@ -1184,35 +1181,52 @@ names(cond.labels) <-
     "Wildcat", 
     "Wolf")
 
-winter_condOcc.plot <- 
-  ggplot(
-    data = winter_Epsi_condOcc_all, 
-    aes(x = CLC_forest, 
-        y = Predicted, 
-        group = conditional))+
-  geom_ribbon(
-    aes(ymin = lwr, 
-        ymax = upr, 
-        fill = conditional), 
-    alpha = 0.7)+
-  geom_line(
-    aes(x = CLC_forest, 
-        y = Predicted, 
-        linetype = conditional), 
-    size = 0.5, 
-    color = "black")+
+winter_condOcc.plot <- ggplot(data = winter_Epsi_condOcc_all, aes(x = CLC_forest, 
+                                                                  y = Predicted, 
+                                                                  group = conditional)) +
+  
+  # add error ribbon
+  geom_ribbon(aes(ymin = lwr, 
+                  ymax = upr, 
+                  fill = conditional), 
+              alpha = 0.7) +
+  
+  # add predicted lines
+  geom_line(aes(x = CLC_forest, 
+                y = Predicted, 
+                linetype = conditional), 
+            size = 0.5, 
+            color = "black") +
+  
+  # rename axis labels
   labs(x = expression ("Proportion forest "~km^2),
-       y = "Occupancy Probability")+
+       y = "Occupancy Probability") +
+  
+  # use facet grid to divide the plots and label the panels
   facet_grid(c.spp ~ spp, 
-             labeller = labeller(c.spp = cond.labels, spp = occ.labels))+
-  scale_linetype_manual(values = lines, labels=label)+
-  scale_fill_manual(values = colors, labels = label)+
-  coord_cartesian(ylim = c(0,1.1))+
-  scale_y_continuous(breaks = seq(from = 0, to =1, by = 0.25))+
+             labeller = labeller(c.spp = cond.labels, 
+                                 spp = occ.labels)) +
+  
+  # change the line type to be different for present and absent data
+  scale_linetype_manual(values = lines, 
+                        labels = label) +
+  
+  
+  # change colors of error ribbon to be different for present and absent data
+  scale_fill_manual(values = colors, 
+                    labels = label) +
+  
+  # set plotting area
+  coord_cartesian(ylim = c(0,1.1)) +
+  
+  # specify breaks for y -axis
+  scale_y_continuous(breaks = seq(from = 0, to =1, by = 0.25)) +
+  
+  # adjust theme elements for pub
   theme(legend.title = element_blank(),
         axis.text = element_text(size = 15),
         axis.title = element_text(size = 18),
-        strip.text = element_text(size = 15)); winter_condOcc.plot
+        strip.text = element_text(size = 15)); winter_condOcc.plot #print
 
 # columns are spp it is predicting occupancy for, and rows are the species the predictions are conditional on
 
